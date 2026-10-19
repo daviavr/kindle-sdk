@@ -17,11 +17,6 @@ Setup_SDK() {
     fi
     sysroot_dir="$tc_dir/$tc_target/sysroot"
 
-    # Just in case
-    set +e
-    sudo umount ./cache/${tc_target}/firmware*/mnt
-    set -e
-    
     case $sdk_target in
         kindlehf)
             arch="armhf"
@@ -93,7 +88,7 @@ Setup_SDK() {
 
         echo "[*] Extracting firmware #$((i+1))"
         if [ -d "./cache/${tc_target}/firmware_${i}/" ]; then
-            sudo rm -rf "./cache/${tc_target}/firmware_${i}/"
+            RM_If_Exists "./cache/${tc_target}/firmware_${i}/"
         fi
       else
         echo "Found firmware in cache - SKIPPING DOWNLOAD!"
@@ -107,7 +102,7 @@ Setup_SDK() {
 
           gunzip rootfs.img.gz
           mkdir -p mnt
-          sudo mount -o loop rootfs.img mnt
+	  fakeroot debugfs -R "rdump / mnt" rootfs.img
       cd ../../..
     done
 
@@ -195,8 +190,6 @@ Setup_SDK() {
         cp -rn --remove-destination ./cache/${tc_target}/firmware_${i}/mnt/lib/* $sysroot_dir/lib/
         set -e
     done
-    sudo chown -R $USER: ${sysroot_dir}/usr/lib/*
-    sudo chown -R $USER: ${sysroot_dir}/lib/*
     echo "[*] Patching symlinks"
     set +e # Temporarially disable error checking because some of these will fail bc they're referencing nonexistent targets
     find $sysroot_dir/usr/lib -type l -ls | grep "\-> /" | grep -v "\-> $sysroot_dir" | awk -v sysroot_dir="$sysroot_dir" '{print "rm " $11 "; ln -sf " sysroot_dir $13 " " $11}' | sh
@@ -210,7 +203,7 @@ Setup_SDK() {
 
 
     echo "[*] Cleaning up"
-    sudo umount ./cache/${tc_target}/firmware*/mnt
+    RM_If_Exists ./cache/${tc_target}/firmware*/mnt
 
     echo "===================================================================================================="
     echo "[*] Kindle (unofficial) SDK Installed"
@@ -226,8 +219,6 @@ echo "================ v2.0.0 ="
 echo
 echo
 
-echo "Please authenticate sudo for mounting"
-sudo echo # Do sudo auth beforehand in case the user leaves when we actually need it lol (the user's PC should download the firmware within the timeout window)
 cd $(dirname "$0")
 
 HELP_MSG="
